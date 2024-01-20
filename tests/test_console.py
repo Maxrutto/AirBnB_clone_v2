@@ -42,3 +42,35 @@ class TestHBNBCommand(unittest.TestCase):
             self.assertIn("'name': 'James'", buff.getvalue().strip())
             self.assertIn("'age': 17", buff.getvalue().strip())
             self.assertIn("'height': 5.9", buff.getvalue().strip())
+
+    @unittest.skipIf(
+        os.getenv('HBNB_TYPE_STORAGE') != 'db', 'DBStorage test')
+    def test_do_create_db(self):
+        """Tests the create command with a database storage
+        """
+
+        with patch('sys.stdout', new=StringIO()) as cout:
+            cons = HBNBCommand()
+            # Creating a model with empty attributes
+            with self.assertRaises(sqlalchemy.exc.OperationalError):
+                cons.onecmd('create User')
+            # Creating a User instance with attributes
+            cout.seek(0)
+            cout.truncate()
+            cons.onecmd('create User email="john@snow.com" password="johnpwd"')
+            model_id3 = cout.getvalue().strip()
+            dbc = MySQLdb.connect(
+                host=os.getenv('HBNB_MYSQL_HOST'),
+                port=3306,
+                user=os.getenv('HBNB_MYSQL_USER'),
+                passwd=os.getenv('HBNB_MYSQL_PWD')
+                db=os.getenv('HBNB_MYSQL_DB')
+            )
+            cursor = dbc.cursor()
+            cursor.execute('SELECT * FROM users WHERE id="{}"'.format(model_id3))
+            result = cursor.fetchone()
+            self.assertTrue(result is not None)
+            self.assertIn('john@snow.com', result)
+            self.assertIn('johnpwd', result)
+            cursor.close()
+            dbc.close()
